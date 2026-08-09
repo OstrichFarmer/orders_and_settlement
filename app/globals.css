@@ -110,4 +110,22 @@ th, td {
   display: flex;
   gap: 0.75rem;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field label {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.hint {
+  font-size: 0.8rem;
+  opacity: 0.65;
+  margin-top: -0.25rem;
 }
