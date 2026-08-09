@@ -16,8 +16,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           zIndex: 50,
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
-          background: 'rgba(11, 15, 25, 0.8)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          background: 'rgba(255, 255, 255, 0.85)',
+          borderBottom: '1px solid #e2e8f0',
         }}
       >
         <nav
