@@ -8,21 +8,62 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
 
   return (
-    <div>
-      <nav className="row" style={{ padding: '1rem', borderBottom: '1px solid #8884', justifyContent: 'space-between' }}>
-        <Link href="/orders" className="nav-brand" style={{ fontWeight: 600 }}>
-          Orders &amp; Settlements
-        </Link>
-        <button
-          onClick={async () => {
-            await logout();
-            router.push('/');
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          background: 'rgba(11, 15, 25, 0.8)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        }}
+      >
+        <nav
+          className="row"
+          style={{
+            maxWidth: 1080,
+            margin: '0 auto',
+            padding: '0.875rem 1.25rem',
+            justifyContent: 'space-between',
+            alignItems: 'center',
           }}
         >
-          Log out
-        </button>
-      </nav>
-      <main style={{ maxWidth: 960, margin: '0 auto', padding: '1.5rem 1rem' }}>{children}</main>
+          <Link href="/orders" className="nav-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                background: 'linear-gradient(135deg, #6366f1 0%, #38bdf8 100%)',
+                color: '#ffffff',
+                fontWeight: 800,
+                fontSize: '0.875rem',
+                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.4)',
+              }}
+            >
+              O
+            </span>
+            Orders &amp; Settlements
+          </Link>
+          <button
+            type="button"
+            className="secondary"
+            style={{ fontSize: '0.8125rem', padding: '0.45rem 0.875rem' }}
+            onClick={async () => {
+              await logout();
+              router.push('/');
+            }}
+          >
+            Log out
+          </button>
+        </nav>
+      </header>
+      <main style={{ maxWidth: 1080, margin: '0 auto', padding: '2rem 1.25rem', width: '100%', flex: 1 }}>{children}</main>
     </div>
   );
 }
