@@ -7,11 +7,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 import { fetchOrder, createPayment, deleteOrder, ApiError } from '@/lib/api-client';
 import { formatMinor, majorToMinor } from '@/lib/money';
+import { DatePicker } from '@/components/DatePicker';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { useToast } from '@/components/Toast';
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['order', id],
@@ -22,12 +26,18 @@ export default function OrderDetailPage() {
   const [paidDate, setPaidDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState(() => uuidv4());
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteOrder(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast.success('Order deleted');
       router.push('/orders');
+    },
+    onError: (err) => {
+      setConfirmDeleteOpen(false);
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong');
     },
   });
 
@@ -43,6 +53,10 @@ export default function OrderDetailPage() {
       setNote('');
       setIdempotencyKey(uuidv4()); // fresh key for the next distinct attempt
       queryClient.invalidateQueries({ queryKey: ['order', id] });
+      toast.success('Payment recorded');
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong');
     },
   });
 
@@ -77,27 +91,24 @@ export default function OrderDetailPage() {
               {order.displayStatus.replace('_', ' ')}
             </span>
             {!locked && (
-              <button
-                type="button"
-                className="danger"
-                disabled={deleteMutation.isPending}
-                onClick={() => {
-                  if (window.confirm(`Delete the order for "${order.customer}"? This cannot be undone.`)) {
-                    deleteMutation.mutate();
-                  }
-                }}
-              >
-                {deleteMutation.isPending ? 'Deleting…' : 'Delete order'}
+              <button type="button" className="danger" onClick={() => setConfirmDeleteOpen(true)}>
+                Delete order
               </button>
             )}
           </div>
         </div>
-        {deleteMutation.isError && (
-          <p className="error-text" style={{ marginTop: '0.75rem' }}>
-            {deleteMutation.error instanceof ApiError ? deleteMutation.error.message : 'Something went wrong'}
-          </p>
-        )}
       </div>
+
+      <ConfirmModal
+        open={confirmDeleteOpen}
+        title="Delete this order?"
+        message={`This will permanently delete the order for "${order.customer}". This cannot be undone.`}
+        confirmLabel="Delete order"
+        danger
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
 
       <div className="stat-grid">
         <div className="stat-card">
@@ -189,6 +200,10 @@ export default function OrderDetailPage() {
             style={{ alignItems: 'flex-end', gap: '0.875rem' }}
             onSubmit={(e) => {
               e.preventDefault();
+              if (!paidDate) {
+                toast.error('Please select the date paid');
+                return;
+              }
               mutation.mutate();
             }}
           >
@@ -207,13 +222,7 @@ export default function OrderDetailPage() {
             </div>
             <div className="field" style={{ flex: 1.2, minWidth: 150 }}>
               <label htmlFor="payment-date">Date paid</label>
-              <input
-                id="payment-date"
-                type="date"
-                value={paidDate}
-                onChange={(e) => setPaidDate(e.target.value)}
-                required
-              />
+              <DatePicker id="payment-date" value={paidDate} onChange={setPaidDate} placeholder="When was this paid?" />
             </div>
             <div className="field" style={{ flex: 2, minWidth: 180 }}>
               <label htmlFor="payment-note">Note (optional)</label>
@@ -228,11 +237,6 @@ export default function OrderDetailPage() {
               {mutation.isPending ? 'Recording…' : 'Record payment'}
             </button>
           </form>
-          {mutation.isError && (
-            <p className="error-text">
-              {mutation.error instanceof ApiError ? mutation.error.message : 'Something went wrong'}
-            </p>
-          )}
         </section>
       )}
     </div>
