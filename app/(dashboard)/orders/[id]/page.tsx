@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
-import { fetchOrder, createPayment, ApiError } from '@/lib/api-client';
+import { fetchOrder, createPayment, deleteOrder, ApiError } from '@/lib/api-client';
 import { formatMinor, majorToMinor } from '@/lib/money';
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
@@ -21,6 +22,14 @@ export default function OrderDetailPage() {
   const [paidDate, setPaidDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState(() => uuidv4());
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      router.push('/orders');
+    },
+  });
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -63,10 +72,31 @@ export default function OrderDetailPage() {
               Due date: <strong style={{ color: 'var(--text-main)' }}>{new Date(order.dueDate).toLocaleDateString()}</strong>
             </p>
           </div>
-          <span className={`badge badge-${order.displayStatus}`} style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}>
-            {order.displayStatus.replace('_', ' ')}
-          </span>
+          <div className="row" style={{ gap: '0.75rem' }}>
+            <span className={`badge badge-${order.displayStatus}`} style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}>
+              {order.displayStatus.replace('_', ' ')}
+            </span>
+            {!locked && (
+              <button
+                type="button"
+                className="danger"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  if (window.confirm(`Delete the order for "${order.customer}"? This cannot be undone.`)) {
+                    deleteMutation.mutate();
+                  }
+                }}
+              >
+                {deleteMutation.isPending ? 'Deleting…' : 'Delete order'}
+              </button>
+            )}
+          </div>
         </div>
+        {deleteMutation.isError && (
+          <p className="error-text" style={{ marginTop: '0.75rem' }}>
+            {deleteMutation.error instanceof ApiError ? deleteMutation.error.message : 'Something went wrong'}
+          </p>
+        )}
       </div>
 
       <div className="stat-grid">
