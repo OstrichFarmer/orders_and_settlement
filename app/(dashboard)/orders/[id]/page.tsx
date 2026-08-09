@@ -37,7 +37,13 @@ export default function OrderDetailPage() {
     },
   });
 
-  if (isLoading) return <p>Loading…</p>;
+  if (isLoading)
+    return (
+      <div className="loading-container">
+        <span className="spinner" />
+        <span>Loading order details…</span>
+      </div>
+    );
   if (error) return <p className="error-text">{(error as Error).message}</p>;
   if (!data) return null;
 
