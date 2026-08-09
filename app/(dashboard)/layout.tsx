@@ -10,7 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div>
       <nav className="row" style={{ padding: '1rem', borderBottom: '1px solid #8884', justifyContent: 'space-between' }}>
-        <Link href="/orders" style={{ fontWeight: 600 }}>
+        <Link href="/orders" className="nav-brand" style={{ fontWeight: 600 }}>
           Orders &amp; Settlements
         </Link>
         <button
