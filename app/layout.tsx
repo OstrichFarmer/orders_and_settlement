@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import { Providers } from './providers';
 import './globals.css';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const jakartaSans = Plus_Jakarta_Sans({
+  variable: '--font-sans',
   subsets: ['latin'],
 });
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const jetbrainsMono = JetBrains_Mono({
+  variable: '--font-mono',
   subsets: ['latin'],
 });
 
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${jakartaSans.variable} ${jetbrainsMono.variable}`}>
       <body>
         <Providers>{children}</Providers>
       </body>
