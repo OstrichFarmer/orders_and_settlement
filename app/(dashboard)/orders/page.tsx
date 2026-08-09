@@ -44,10 +44,15 @@ function OrdersListContent() {
   }
 
   return (
-    <div className="stack">
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <h1>Orders</h1>
-        <button onClick={() => setShowForm((s) => !s)}>{showForm ? 'Cancel' : 'New order'}</button>
+    <div className="stack" style={{ gap: '1.5rem' }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1>Orders</h1>
+          <p className="hint" style={{ marginTop: '0.25rem' }}>Manage customer orders, view balances, and record payment settlements</p>
+        </div>
+        <button onClick={() => setShowForm((s) => !s)}>
+          {showForm ? 'Cancel' : '+ New order'}
+        </button>
       </div>
 
       {showForm && (
@@ -59,9 +64,9 @@ function OrdersListContent() {
         />
       )}
 
-      <div className="row">
-        <label htmlFor="status-filter">Status:</label>
-        <select id="status-filter" value={status} onChange={(e) => setStatus(e.target.value)}>
+      <div className="row" style={{ alignItems: 'center', gap: '0.75rem' }}>
+        <label htmlFor="status-filter" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-muted)' }}>Filter status:</label>
+        <select id="status-filter" value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: 'auto', minWidth: 160 }}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}
@@ -70,47 +75,55 @@ function OrdersListContent() {
         </select>
       </div>
 
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p className="hint">Loading orders…</p>}
       {error && <p className="error-text">{(error as Error).message}</p>}
 
       {orders && (
-        <table>
-          <thead>
-            <tr>
-              <th>Customer</th>
-              <th>Status</th>
-              <th>Total</th>
-              <th>Paid</th>
-              <th>Amount due</th>
-              <th>Due date</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((o) => (
-              <tr key={o._id}>
-                <td>
-                  <Link href={`/orders/${o._id}`}>{o.customer}</Link>
-                </td>
-                <td>
-                  <span className={`badge badge-${o.displayStatus}`}>{o.displayStatus}</span>
-                </td>
-                <td>${formatMinor(o.totalMinor)}</td>
-                <td>${formatMinor(o.amountPaidMinor)}</td>
-                <td>${formatMinor(o.amountDueMinor)}</td>
-                <td>{new Date(o.dueDate).toLocaleDateString()}</td>
-                <td>
-                  <Link href={`/orders/${o._id}`}>View / record payment →</Link>
-                </td>
-              </tr>
-            ))}
-            {orders.length === 0 && (
+        <div className="table-container">
+          <table>
+            <thead>
               <tr>
-                <td colSpan={7}>No orders.</td>
+                <th>Customer</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Paid</th>
+                <th>Amount due</th>
+                <th>Due date</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {orders.map((o) => (
+                <tr key={o._id}>
+                  <td style={{ fontWeight: 600 }}>
+                    <Link href={`/orders/${o._id}`}>{o.customer}</Link>
+                  </td>
+                  <td>
+                    <span className={`badge badge-${o.displayStatus}`}>{o.displayStatus.replace('_', ' ')}</span>
+                  </td>
+                  <td style={{ fontWeight: 600 }}>${formatMinor(o.totalMinor)}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>${formatMinor(o.amountPaidMinor)}</td>
+                  <td style={{ fontWeight: o.amountDueMinor > 0 ? 600 : 400, color: o.amountDueMinor > 0 ? 'var(--accent-rose)' : 'var(--text-muted)' }}>
+                    ${formatMinor(o.amountDueMinor)}
+                  </td>
+                  <td style={{ color: 'var(--text-muted)' }}>{new Date(o.dueDate).toLocaleDateString()}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <Link href={`/orders/${o._id}`} style={{ fontSize: '0.8125rem' }}>
+                      View / record payment →
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+              {orders.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                    No orders found matching the selected filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
@@ -148,23 +161,31 @@ function NewOrderForm({ onCreated }: { onCreated: () => void }) {
     setLineItems((items) => items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   }
 
+  function removeLineItem(index: number) {
+    if (lineItems.length > 1) {
+      setLineItems((items) => items.filter((_, i) => i !== index));
+    }
+  }
+
   return (
     <form
-      className="stack"
-      style={{ border: '1px solid #8884', borderRadius: 8, padding: '1rem' }}
+      className="card stack"
       onSubmit={(e) => {
         e.preventDefault();
         mutation.mutate();
       }}
     >
-      <p className="hint">Create an order by listing what was sold. Total is calculated automatically.</p>
+      <div>
+        <h2 style={{ fontSize: '1.1rem' }}>Create New Order</h2>
+        <p className="hint" style={{ marginTop: '0.2rem' }}>Fill in customer details and line items. Order total will be calculated automatically.</p>
+      </div>
 
       <div className="row">
         <div className="field">
           <label htmlFor="new-order-customer">Customer name</label>
           <input
             id="new-order-customer"
-            placeholder="e.g. Acme Co"
+            placeholder="e.g. Acme Corporation"
             value={customer}
             onChange={(e) => setCustomer(e.target.value)}
             required
@@ -182,56 +203,71 @@ function NewOrderForm({ onCreated }: { onCreated: () => void }) {
         </div>
       </div>
 
-      <div className="stack">
-        <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Line items</label>
+      <div className="stack" style={{ gap: '0.75rem' }}>
+        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>LINE ITEMS</label>
         {lineItems.map((item, i) => (
-          <div className="row" key={i}>
-            <div className="field">
+          <div className="row" key={i} style={{ alignItems: 'flex-end' }}>
+            <div className="field" style={{ flex: 3 }}>
               {i === 0 && <label>Description</label>}
               <input
-                placeholder="e.g. Widget"
+                placeholder="e.g. Software License"
                 value={item.description}
                 onChange={(e) => updateLineItem(i, { description: e.target.value })}
                 required
               />
             </div>
-            <div className="field">
-              {i === 0 && <label>Quantity</label>}
+            <div className="field" style={{ flex: 1, minWidth: 90 }}>
+              {i === 0 && <label>Qty</label>}
               <input
                 type="number"
                 min={1}
                 step={1}
-                style={{ width: 80 }}
                 value={item.quantity}
                 onChange={(e) => updateLineItem(i, { quantity: Number(e.target.value) })}
               />
             </div>
-            <div className="field">
-              {i === 0 && <label>Price per unit ($)</label>}
+            <div className="field" style={{ flex: 1.5, minWidth: 120 }}>
+              {i === 0 && <label>Unit price ($)</label>}
               <input
                 type="number"
                 min={0}
                 step="0.01"
                 placeholder="0.00"
-                style={{ width: 120 }}
                 value={item.unitPrice}
                 onChange={(e) => updateLineItem(i, { unitPrice: e.target.value })}
                 required
               />
             </div>
+            {lineItems.length > 1 && (
+              <button
+                type="button"
+                className="secondary"
+                style={{ padding: '0.625rem 0.75rem', color: 'var(--accent-rose)' }}
+                onClick={() => removeLineItem(i)}
+                title="Remove item"
+              >
+                ✕
+              </button>
+            )}
           </div>
         ))}
-        <button
-          type="button"
-          onClick={() => setLineItems((items) => [...items, { description: '', quantity: 1, unitPrice: '' }])}
-        >
-          + Add line item
-        </button>
+        <div>
+          <button
+            type="button"
+            className="secondary"
+            style={{ fontSize: '0.8125rem', marginTop: '0.25rem' }}
+            onClick={() => setLineItems((items) => [...items, { description: '', quantity: 1, unitPrice: '' }])}
+          >
+            + Add line item
+          </button>
+        </div>
       </div>
 
-      <button type="submit" disabled={mutation.isPending}>
-        {mutation.isPending ? 'Creating…' : 'Create order'}
-      </button>
+      <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+        <button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? 'Creating order…' : 'Create order'}
+        </button>
+      </div>
       {mutation.isError && (
         <p className="error-text">
           {mutation.error instanceof ApiError ? mutation.error.message : 'Something went wrong'}
