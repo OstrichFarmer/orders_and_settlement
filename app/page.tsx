@@ -18,7 +18,10 @@ export default function Home() {
 
   return (
     <main style={{ maxWidth: 380, margin: '4rem auto', padding: '0 1rem' }}>
-      <h1 style={{ marginBottom: '1.5rem' }}>Orders &amp; Settlements</h1>
+      <h1 style={{ marginBottom: '0.25rem' }}>Orders &amp; Settlements</h1>
+      <p className="hint" style={{ marginBottom: '1.5rem' }}>
+        {mode === 'login' ? 'Log in to view your orders.' : 'Create an account to get started.'}
+      </p>
       <form
         className="stack"
         onSubmit={(e) => {
@@ -26,23 +29,31 @@ export default function Home() {
           mutation.mutate();
         }}
       >
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          minLength={mode === 'signup' ? 8 : undefined}
-          required
-        />
+        <div className="field">
+          <label htmlFor="auth-email">Email</label>
+          <input
+            id="auth-email"
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="auth-password">Password</label>
+          <input
+            id="auth-password"
+            type="password"
+            placeholder={mode === 'signup' ? 'At least 8 characters' : 'Password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={mode === 'signup' ? 8 : undefined}
+            required
+          />
+        </div>
         <button type="submit" disabled={mutation.isPending}>
-          {mode === 'login' ? 'Log in' : 'Sign up'}
+          {mutation.isPending ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Sign up'}
         </button>
         {mutation.isError && (
           <p className="error-text">
