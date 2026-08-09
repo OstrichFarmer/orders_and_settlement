@@ -93,6 +93,10 @@ export function createOrder(input: { customer: string; dueDate: string; lineItem
   return request<OrderWithDerived>('/api/orders', { method: 'POST', body: JSON.stringify(input) });
 }
 
+export function deleteOrder(id: string) {
+  return request<undefined>(`/api/orders/${id}`, { method: 'DELETE' });
+}
+
 export function createPayment(
   orderId: string,
   input: { amountMinor: number; paidDate: string; note?: string },
