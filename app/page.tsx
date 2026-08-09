@@ -4,16 +4,24 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { login, signup, ApiError } from '@/lib/api-client';
+import { useToast } from '@/components/Toast';
 
 export default function Home() {
   const router = useRouter();
+  const toast = useToast();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const mutation = useMutation({
     mutationFn: () => (mode === 'login' ? login({ email, password }) : signup({ email, password })),
-    onSuccess: () => router.push('/orders'),
+    onSuccess: () => {
+      toast.success(mode === 'login' ? 'Welcome back!' : 'Account created!');
+      router.push('/orders');
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong');
+    },
   });
 
   return (
@@ -78,11 +86,6 @@ export default function Home() {
           <button type="submit" disabled={mutation.isPending} style={{ marginTop: '0.5rem', width: '100%' }}>
             {mutation.isPending ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Sign up'}
           </button>
-          {mutation.isError && (
-            <p className="error-text">
-              {mutation.error instanceof ApiError ? mutation.error.message : 'Something went wrong'}
-            </p>
-          )}
         </form>
 
         <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0', textAlign: 'center' }}>
