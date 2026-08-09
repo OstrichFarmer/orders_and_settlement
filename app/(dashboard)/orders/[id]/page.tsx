@@ -68,11 +68,11 @@ export default function OrderDetailPage() {
           <span className="stat-label">Total Amount</span>
           <span className="stat-value">${formatMinor(order.totalMinor)}</span>
         </div>
-        <div className="stat-card" style={{ borderColor: 'rgba(52, 211, 153, 0.25)' }}>
+        <div className="stat-card" style={{ borderColor: '#a7f3d0' }}>
           <span className="stat-label" style={{ color: 'var(--accent-emerald)' }}>Amount Paid</span>
           <span className="stat-value" style={{ color: 'var(--accent-emerald)' }}>${formatMinor(order.amountPaidMinor)}</span>
         </div>
-        <div className="stat-card" style={{ borderColor: order.amountDueMinor > 0 ? 'rgba(251, 113, 133, 0.25)' : 'var(--border-subtle)' }}>
+        <div className="stat-card" style={{ borderColor: order.amountDueMinor > 0 ? '#fecdd3' : 'var(--border-subtle)' }}>
           <span className="stat-label" style={{ color: order.amountDueMinor > 0 ? 'var(--accent-rose)' : 'var(--text-muted)' }}>Amount Due</span>
           <span className="stat-value" style={{ color: order.amountDueMinor > 0 ? 'var(--accent-rose)' : 'var(--text-main)' }}>
             ${formatMinor(order.amountDueMinor)}
@@ -141,7 +141,7 @@ export default function OrderDetailPage() {
       </section>
 
       {order.displayStatus !== 'paid' && (
-        <section className="card stack" style={{ gap: '1rem', borderColor: 'rgba(99, 102, 241, 0.3)' }}>
+        <section className="card stack" style={{ gap: '1rem', borderColor: '#c7d2fe' }}>
           <div>
             <h2>Record a Settlement Payment</h2>
             <p className="hint" style={{ marginTop: '0.2rem' }}>
