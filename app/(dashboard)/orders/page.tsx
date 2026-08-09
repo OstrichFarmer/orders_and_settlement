@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchOrders, createOrder, ApiError } from '@/lib/api-client';
 import { formatMinor, majorToMinor } from '@/lib/money';
+import { DatePicker } from '@/components/DatePicker';
+import { useToast } from '@/components/Toast';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All statuses' },
@@ -149,6 +151,7 @@ interface FormLineItem {
 }
 
 function NewOrderForm({ onCreated }: { onCreated: () => void }) {
+  const toast = useToast();
   const [customer, setCustomer] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [lineItems, setLineItems] = useState<FormLineItem[]>([
@@ -166,7 +169,13 @@ function NewOrderForm({ onCreated }: { onCreated: () => void }) {
           unitPriceMinor: majorToMinor(item.unitPrice || '0'),
         })),
       }),
-    onSuccess: onCreated,
+    onSuccess: () => {
+      toast.success('Order created');
+      onCreated();
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong');
+    },
   });
 
   function updateLineItem(index: number, patch: Partial<FormLineItem>) {
@@ -184,6 +193,10 @@ function NewOrderForm({ onCreated }: { onCreated: () => void }) {
       className="card stack"
       onSubmit={(e) => {
         e.preventDefault();
+        if (!dueDate) {
+          toast.error('Please select a due date');
+          return;
+        }
         mutation.mutate();
       }}
     >
@@ -205,13 +218,7 @@ function NewOrderForm({ onCreated }: { onCreated: () => void }) {
         </div>
         <div className="field">
           <label htmlFor="new-order-due-date">Due date</label>
-          <input
-            id="new-order-due-date"
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            required
-          />
+          <DatePicker id="new-order-due-date" value={dueDate} onChange={setDueDate} placeholder="When is payment due?" />
         </div>
       </div>
 
@@ -280,11 +287,6 @@ function NewOrderForm({ onCreated }: { onCreated: () => void }) {
           {mutation.isPending ? 'Creating order…' : 'Create order'}
         </button>
       </div>
-      {mutation.isError && (
-        <p className="error-text">
-          {mutation.error instanceof ApiError ? mutation.error.message : 'Something went wrong'}
-        </p>
-      )}
     </form>
   );
 }
