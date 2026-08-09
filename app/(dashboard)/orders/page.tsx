@@ -17,7 +17,14 @@ const STATUS_OPTIONS = [
 
 export default function OrdersListPage() {
   return (
-    <Suspense fallback={<p>Loading…</p>}>
+    <Suspense
+      fallback={
+        <div className="loading-container">
+          <span className="spinner" />
+          <span>Loading orders…</span>
+        </div>
+      }
+    >
       <OrdersListContent />
     </Suspense>
   );
@@ -75,7 +82,12 @@ function OrdersListContent() {
         </select>
       </div>
 
-      {isLoading && <p className="hint">Loading orders…</p>}
+      {isLoading && (
+        <div className="loading-container">
+          <span className="spinner" />
+          <span>Loading orders…</span>
+        </div>
+      )}
       {error && <p className="error-text">{(error as Error).message}</p>}
 
       {orders && (
@@ -108,8 +120,8 @@ function OrdersListContent() {
                   </td>
                   <td style={{ color: 'var(--text-muted)' }}>{new Date(o.dueDate).toLocaleDateString()}</td>
                   <td style={{ textAlign: 'right' }}>
-                    <Link href={`/orders/${o._id}`} style={{ fontSize: '0.8125rem' }}>
-                      View / record payment →
+                    <Link href={`/orders/${o._id}`} className="action-btn">
+                      View Details →
                     </Link>
                   </td>
                 </tr>
