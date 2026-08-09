@@ -67,16 +67,16 @@ export default function OrderDetailPage() {
               <tr key={i}>
                 <td>{item.description}</td>
                 <td>{item.quantity}</td>
-                <td>{formatMinor(item.unitPriceMinor)}</td>
-                <td>{formatMinor(item.quantity * item.unitPriceMinor)}</td>
+                <td>${formatMinor(item.unitPriceMinor)}</td>
+                <td>${formatMinor(item.quantity * item.unitPriceMinor)}</td>
               </tr>
             ))}
           </tbody>
         </table>
         <div className="row" style={{ gap: '2rem' }}>
-          <span>Total: {formatMinor(order.totalMinor)}</span>
-          <span>Paid: {formatMinor(order.amountPaidMinor)}</span>
-          <span>Due: {formatMinor(order.amountDueMinor)}</span>
+          <span>Total: ${formatMinor(order.totalMinor)}</span>
+          <span>Paid: ${formatMinor(order.amountPaidMinor)}</span>
+          <span>Amount due: ${formatMinor(order.amountDueMinor)}</span>
         </div>
       </section>
 
@@ -94,7 +94,7 @@ export default function OrderDetailPage() {
             {payments.map((p) => (
               <tr key={p._id}>
                 <td>{new Date(p.paidDate).toLocaleDateString()}</td>
-                <td>{formatMinor(p.amountMinor)}</td>
+                <td>${formatMinor(p.amountMinor)}</td>
                 <td>{p.note ?? ''}</td>
               </tr>
             ))}
@@ -110,24 +110,50 @@ export default function OrderDetailPage() {
       {order.displayStatus !== 'paid' && (
         <section className="stack" style={{ border: '1px solid #8884', borderRadius: 8, padding: '1rem' }}>
           <h2>Record a payment</h2>
+          <p className="hint">
+            Amount due is ${formatMinor(order.amountDueMinor)}. Payments over that amount will be rejected.
+          </p>
           <form
             className="row"
+            style={{ alignItems: 'flex-end' }}
             onSubmit={(e) => {
               e.preventDefault();
               mutation.mutate();
             }}
           >
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="Amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-            <input type="date" value={paidDate} onChange={(e) => setPaidDate(e.target.value)} required />
-            <input placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+            <div className="field">
+              <label htmlFor="payment-amount">Amount paid ($)</label>
+              <input
+                id="payment-amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="0.00"
+                style={{ width: 120 }}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="payment-date">Date paid</label>
+              <input
+                id="payment-date"
+                type="date"
+                value={paidDate}
+                onChange={(e) => setPaidDate(e.target.value)}
+                required
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="payment-note">Note (optional)</label>
+              <input
+                id="payment-note"
+                placeholder="e.g. Wire transfer ref #123"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </div>
             <button type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? 'Recording…' : 'Record payment'}
             </button>
