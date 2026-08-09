@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
@@ -44,84 +45,118 @@ export default function OrderDetailPage() {
   const locked = order.amountPaidMinor > 0;
 
   return (
-    <div className="stack">
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <h1>{order.customer}</h1>
-        <span className={`badge badge-${order.displayStatus}`}>{order.displayStatus}</span>
+    <div className="stack" style={{ gap: '1.75rem' }}>
+      <div>
+        <Link href="/orders" style={{ fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.75rem' }}>
+          ← Back to orders
+        </Link>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1>{order.customer}</h1>
+            <p className="hint" style={{ marginTop: '0.25rem' }}>
+              Due date: <strong style={{ color: 'var(--text-main)' }}>{new Date(order.dueDate).toLocaleDateString()}</strong>
+            </p>
+          </div>
+          <span className={`badge badge-${order.displayStatus}`} style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}>
+            {order.displayStatus.replace('_', ' ')}
+          </span>
+        </div>
       </div>
-      <p>Due {new Date(order.dueDate).toLocaleDateString()}</p>
 
-      <section className="stack">
-        <h2>Line items {locked && <small>(locked — payment recorded)</small>}</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th>Qty</th>
-              <th>Unit price</th>
-              <th>Line total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.lineItems.map((item, i) => (
-              <tr key={i}>
-                <td>{item.description}</td>
-                <td>{item.quantity}</td>
-                <td>${formatMinor(item.unitPriceMinor)}</td>
-                <td>${formatMinor(item.quantity * item.unitPriceMinor)}</td>
+      <div className="stat-grid">
+        <div className="stat-card">
+          <span className="stat-label">Total Amount</span>
+          <span className="stat-value">${formatMinor(order.totalMinor)}</span>
+        </div>
+        <div className="stat-card" style={{ borderColor: 'rgba(52, 211, 153, 0.25)' }}>
+          <span className="stat-label" style={{ color: 'var(--accent-emerald)' }}>Amount Paid</span>
+          <span className="stat-value" style={{ color: 'var(--accent-emerald)' }}>${formatMinor(order.amountPaidMinor)}</span>
+        </div>
+        <div className="stat-card" style={{ borderColor: order.amountDueMinor > 0 ? 'rgba(251, 113, 133, 0.25)' : 'var(--border-subtle)' }}>
+          <span className="stat-label" style={{ color: order.amountDueMinor > 0 ? 'var(--accent-rose)' : 'var(--text-muted)' }}>Amount Due</span>
+          <span className="stat-value" style={{ color: order.amountDueMinor > 0 ? 'var(--accent-rose)' : 'var(--text-main)' }}>
+            ${formatMinor(order.amountDueMinor)}
+          </span>
+        </div>
+      </div>
+
+      <section className="card stack" style={{ gap: '1rem' }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2>Line Items</h2>
+          {locked && <span className="hint" style={{ fontSize: '0.8125rem' }}>🔒 Order locked (payment recorded)</span>}
+        </div>
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th style={{ textAlign: 'center' }}>Qty</th>
+                <th style={{ textAlign: 'right' }}>Unit price</th>
+                <th style={{ textAlign: 'right' }}>Line total</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="row" style={{ gap: '2rem' }}>
-          <span>Total: ${formatMinor(order.totalMinor)}</span>
-          <span>Paid: ${formatMinor(order.amountPaidMinor)}</span>
-          <span>Amount due: ${formatMinor(order.amountDueMinor)}</span>
+            </thead>
+            <tbody>
+              {order.lineItems.map((item, i) => (
+                <tr key={i}>
+                  <td style={{ fontWeight: 500 }}>{item.description}</td>
+                  <td style={{ textAlign: 'center' }}>{item.quantity}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>${formatMinor(item.unitPriceMinor)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>${formatMinor(item.quantity * item.unitPriceMinor)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
-      <section className="stack">
-        <h2>Payment history</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Amount</th>
-              <th>Note</th>
-            </tr>
-          </thead>
-          <tbody>
-            {payments.map((p) => (
-              <tr key={p._id}>
-                <td>{new Date(p.paidDate).toLocaleDateString()}</td>
-                <td>${formatMinor(p.amountMinor)}</td>
-                <td>{p.note ?? ''}</td>
-              </tr>
-            ))}
-            {payments.length === 0 && (
+      <section className="card stack" style={{ gap: '1rem' }}>
+        <h2>Payment History</h2>
+        <div className="table-container">
+          <table>
+            <thead>
               <tr>
-                <td colSpan={3}>No payments yet.</td>
+                <th>Date Paid</th>
+                <th>Amount</th>
+                <th>Note</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {payments.map((p) => (
+                <tr key={p._id}>
+                  <td style={{ color: 'var(--text-muted)' }}>{new Date(p.paidDate).toLocaleDateString()}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--accent-emerald)' }}>+${formatMinor(p.amountMinor)}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>{p.note || '—'}</td>
+                </tr>
+              ))}
+              {payments.length === 0 && (
+                <tr>
+                  <td colSpan={3} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
+                    No payments recorded yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {order.displayStatus !== 'paid' && (
-        <section className="stack" style={{ border: '1px solid #8884', borderRadius: 8, padding: '1rem' }}>
-          <h2>Record a payment</h2>
-          <p className="hint">
-            Amount due is ${formatMinor(order.amountDueMinor)}. Payments over that amount will be rejected.
-          </p>
+        <section className="card stack" style={{ gap: '1rem', borderColor: 'rgba(99, 102, 241, 0.3)' }}>
+          <div>
+            <h2>Record a Settlement Payment</h2>
+            <p className="hint" style={{ marginTop: '0.2rem' }}>
+              Amount remaining due is <strong style={{ color: 'var(--text-main)' }}>${formatMinor(order.amountDueMinor)}</strong>. Payments exceeding this will be rejected.
+            </p>
+          </div>
           <form
             className="row"
-            style={{ alignItems: 'flex-end' }}
+            style={{ alignItems: 'flex-end', gap: '0.875rem' }}
             onSubmit={(e) => {
               e.preventDefault();
               mutation.mutate();
             }}
           >
-            <div className="field">
+            <div className="field" style={{ flex: 1.2, minWidth: 140 }}>
               <label htmlFor="payment-amount">Amount paid ($)</label>
               <input
                 id="payment-amount"
@@ -129,13 +164,12 @@ export default function OrderDetailPage() {
                 step="0.01"
                 min="0.01"
                 placeholder="0.00"
-                style={{ width: 120 }}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
               />
             </div>
-            <div className="field">
+            <div className="field" style={{ flex: 1.2, minWidth: 150 }}>
               <label htmlFor="payment-date">Date paid</label>
               <input
                 id="payment-date"
@@ -145,7 +179,7 @@ export default function OrderDetailPage() {
                 required
               />
             </div>
-            <div className="field">
+            <div className="field" style={{ flex: 2, minWidth: 180 }}>
               <label htmlFor="payment-note">Note (optional)</label>
               <input
                 id="payment-note"
@@ -154,7 +188,7 @@ export default function OrderDetailPage() {
                 onChange={(e) => setNote(e.target.value)}
               />
             </div>
-            <button type="submit" disabled={mutation.isPending}>
+            <button type="submit" disabled={mutation.isPending} style={{ whiteSpace: 'nowrap' }}>
               {mutation.isPending ? 'Recording…' : 'Record payment'}
             </button>
           </form>
