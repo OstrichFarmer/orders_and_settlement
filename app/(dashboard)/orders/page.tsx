@@ -83,6 +83,7 @@ function OrdersListContent() {
               <th>Paid</th>
               <th>Amount due</th>
               <th>Due date</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -98,11 +99,14 @@ function OrdersListContent() {
                 <td>${formatMinor(o.amountPaidMinor)}</td>
                 <td>${formatMinor(o.amountDueMinor)}</td>
                 <td>{new Date(o.dueDate).toLocaleDateString()}</td>
+                <td>
+                  <Link href={`/orders/${o._id}`}>View / record payment →</Link>
+                </td>
               </tr>
             ))}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={6}>No orders.</td>
+                <td colSpan={7}>No orders.</td>
               </tr>
             )}
           </tbody>
