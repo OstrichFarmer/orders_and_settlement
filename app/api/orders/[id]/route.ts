@@ -33,7 +33,8 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
 
     const orders = await getOrdersCollection();
     const payments = await getPaymentsCollection();
-    const result = await getOrderById(orders, payments, userId, orderId);
+    const auditLog = await getAuditLogCollection();
+    const result = await getOrderById(orders, payments, auditLog, userId, orderId);
 
     return NextResponse.json(result, { status: 200 });
   } catch (err) {

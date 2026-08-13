@@ -2,7 +2,7 @@ import { ObjectId, type Collection } from 'mongodb';
 import { getDb, getClient } from '@/lib/db';
 import { ensureIndexes } from '@/scripts/ensureIndexes';
 import { createOrder } from './orders';
-import { recordPayment, OverpaymentError } from './payments';
+import { recordPayment, recordRefund, OverpaymentError, RefundExceedsPaidError } from './payments';
 import type { Order, Payment, AuditLog } from '@/types/models';
 
 let orders: Collection<Order>;
@@ -123,6 +123,99 @@ describe('concurrency: the $expr guard prevents over-allocation', () => {
     // silence unused-var lint for the outer `order` used only to prime indexes/collections
     expect(order).toBeTruthy();
   }, 60000);
+});
+
+describe('refunds', () => {
+  it('reduces amountPaidMinor and can move status backward', async () => {
+    const client = await getClient();
+    const order = await makeOrder(100000); // $1000
+
+    await recordPayment(client, { orders, payments, auditLog }, userId, order._id, {
+      amountMinor: 100000,
+      paidDate: new Date(),
+    });
+
+    const r1 = await recordRefund(client, { orders, payments, auditLog }, userId, order._id, {
+      amountMinor: 30000,
+      refundDate: new Date(),
+    });
+    expect(r1.order.amountPaidMinor).toBe(70000);
+    expect(r1.order.status).toBe('partially_paid');
+    expect(r1.payment.type).toBe('refund');
+
+    const r2 = await recordRefund(client, { orders, payments, auditLog }, userId, order._id, {
+      amountMinor: 70000,
+      refundDate: new Date(),
+    });
+    expect(r2.order.amountPaidMinor).toBe(0);
+    expect(r2.order.status).toBe('pending');
+
+    const events = await auditLog.find({ orderId: order._id }).sort({ createdAt: 1 }).toArray();
+    expect(events.map((e) => e.event)).toEqual([
+      'order.created',
+      'payment.recorded',
+      'status.changed',
+      'refund.recorded',
+      'status.changed',
+      'refund.recorded',
+      'status.changed',
+    ]);
+  });
+
+  it('rejects a refund that would exceed the amount paid, with the correct maxAllowedMinor', async () => {
+    const client = await getClient();
+    const order = await makeOrder(100000);
+    await recordPayment(client, { orders, payments, auditLog }, userId, order._id, {
+      amountMinor: 40000,
+      paidDate: new Date(),
+    });
+
+    await expect(
+      recordRefund(client, { orders, payments, auditLog }, userId, order._id, {
+        amountMinor: 40001,
+        refundDate: new Date(),
+      })
+    ).rejects.toMatchObject({ code: 'REFUND_EXCEEDS_PAID', maxAllowedMinor: 40000 });
+  });
+
+  it('rejects any refund on an order with no payments', async () => {
+    const client = await getClient();
+    const order = await makeOrder(100000);
+
+    await expect(
+      recordRefund(client, { orders, payments, auditLog }, userId, order._id, {
+        amountMinor: 1,
+        refundDate: new Date(),
+      })
+    ).rejects.toBeInstanceOf(RefundExceedsPaidError);
+  });
+
+  it('deduplicates a repeated refund idempotency key', async () => {
+    const client = await getClient();
+    const order = await makeOrder(100000);
+    await recordPayment(client, { orders, payments, auditLog }, userId, order._id, {
+      amountMinor: 50000,
+      paidDate: new Date(),
+    });
+
+    const key = 'refund-idem-1';
+    const first = await recordRefund(client, { orders, payments, auditLog }, userId, order._id, {
+      amountMinor: 10000,
+      refundDate: new Date(),
+      idempotencyKey: key,
+    });
+    const second = await recordRefund(client, { orders, payments, auditLog }, userId, order._id, {
+      amountMinor: 10000,
+      refundDate: new Date(),
+      idempotencyKey: key,
+    });
+
+    expect(second.idempotentReplay).toBe(true);
+    expect(second.payment._id.toString()).toBe(first.payment._id.toString());
+
+    const finalOrder = await orders.findOne({ _id: order._id });
+    expect(finalOrder?.amountPaidMinor).toBe(40000); // only decremented once
+  });
 });
 
 describe('idempotency', () => {

@@ -105,8 +105,19 @@ describe('getOrderById', () => {
       lineItems: [{ description: 'x', quantity: 1, unitPriceMinor: 100 }],
     });
     await expect(
-      getOrderById(orders, payments, new ObjectId(), order._id)
+      getOrderById(orders, payments, auditLog, new ObjectId(), order._id)
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('returns the audit trail alongside the order and payments', async () => {
+    const order = await createOrder(orders, auditLog, userId, {
+      customer: 'A',
+      dueDate: futureDate(),
+      lineItems: [{ description: 'x', quantity: 1, unitPriceMinor: 100 }],
+    });
+    const result = await getOrderById(orders, payments, auditLog, userId, order._id);
+    expect(result.auditLog).toHaveLength(1);
+    expect(result.auditLog[0].event).toBe('order.created');
   });
 });
 

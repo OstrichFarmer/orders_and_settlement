@@ -96,35 +96,45 @@ export async function createOrder(
 export async function listOrders(
   orders: Collection<Order>,
   userId: ObjectId,
-  filter: { status?: string }
+  filter: { status?: string; from?: Date; to?: Date }
 ): Promise<OrderWithDerived[]> {
   const now = new Date();
   const query: Record<string, unknown> = { userId };
+  const dueDateConditions: Record<string, Date> = {};
 
   if (filter.status === 'overdue') {
     // overdue is a predicate over stored fields, expressible directly in Mongo.
     query.status = { $ne: 'paid' };
-    query.dueDate = { $lt: now };
+    dueDateConditions.$lt = now;
   } else if (filter.status === 'pending' || filter.status === 'partially_paid' || filter.status === 'paid') {
     query.status = filter.status;
   }
 
-  const docs = await orders.find(query).sort({ createdAt: -1 }).toArray();
+  // Used by the CSV export ("for a date range") — filters on dueDate, the
+  // field the brief's date-range language most naturally refers to (when
+  // payment is expected), documented as an assumption in the README.
+  if (filter.from) dueDateConditions.$gte = filter.from;
+  if (filter.to) dueDateConditions.$lte = filter.to;
+  if (Object.keys(dueDateConditions).length > 0) query.dueDate = dueDateConditions;
+
+  const docs = await orders.find(query).sort({ dueDate: 1 }).toArray();
   return docs.map(withDerived);
 }
 
 export async function getOrderById(
   orders: Collection<Order>,
   payments: Collection<Payment>,
+  auditLog: Collection<AuditLog>,
   userId: ObjectId,
   orderId: ObjectId
-): Promise<{ order: OrderWithDerived; payments: Payment[] }> {
+): Promise<{ order: OrderWithDerived; payments: Payment[]; auditLog: AuditLog[] }> {
   const order = await orders.findOne({ _id: orderId, userId });
   if (!order) throw new NotFoundError('Order not found');
 
   const paymentDocs = await payments.find({ orderId }).sort({ createdAt: 1 }).toArray();
+  const auditDocs = await auditLog.find({ orderId }).sort({ createdAt: 1 }).toArray();
 
-  return { order: withDerived(order), payments: paymentDocs };
+  return { order: withDerived(order), payments: paymentDocs, auditLog: auditDocs };
 }
 
 export async function updateOrder(
