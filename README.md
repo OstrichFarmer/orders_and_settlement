@@ -15,7 +15,7 @@ pnpm dev                     # http://localhost:3000
 pnpm test                    # runs the full Jest suite (spins up its own in-memory replica set)
 ```
 
-Demo login after seeding: `demo@example.com` / `password123`.
+Demo login after seeding: `joel.ugwa56@gmail.com` / `Password12@`.
 
 ## Live URL
 

@@ -3,8 +3,8 @@ import { getDb, getClient } from '@/lib/db';
 import { ensureIndexes } from './ensureIndexes';
 import { hashPassword } from '@/lib/auth';
 
-const DEMO_EMAIL = 'demo@example.com';
-const DEMO_PASSWORD = 'password123';
+const DEMO_EMAIL = 'joel.ugwa56@gmail.com';
+const DEMO_PASSWORD = 'Password12@';
 
 function daysFromNow(days: number): Date {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
