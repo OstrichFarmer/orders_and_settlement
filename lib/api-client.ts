@@ -61,10 +61,19 @@ export interface OrderWithDerived {
 export interface Payment {
   _id: string;
   orderId: string;
+  type: 'payment' | 'refund';
   amountMinor: number;
   paidDate: string;
   note?: string;
   idempotencyKey?: string;
+  createdAt: string;
+}
+
+export interface AuditLogEntry {
+  _id: string;
+  orderId: string;
+  event: 'order.created' | 'payment.recorded' | 'refund.recorded' | 'status.changed';
+  data: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -86,11 +95,18 @@ export function fetchOrders(status?: string) {
 }
 
 export function fetchOrder(id: string) {
-  return request<{ order: OrderWithDerived; payments: Payment[] }>(`/api/orders/${id}`);
+  return request<{ order: OrderWithDerived; payments: Payment[]; auditLog: AuditLogEntry[] }>(`/api/orders/${id}`);
 }
 
 export function createOrder(input: { customer: string; dueDate: string; lineItems: LineItemInput[] }) {
   return request<OrderWithDerived>('/api/orders', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function updateOrder(
+  id: string,
+  input: { customer?: string; dueDate?: string; lineItems?: LineItemInput[] }
+) {
+  return request<OrderWithDerived>(`/api/orders/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
 }
 
 export function deleteOrder(id: string) {
@@ -107,4 +123,49 @@ export function createPayment(
     headers: { 'Idempotency-Key': idempotencyKey },
     body: JSON.stringify(input),
   });
+}
+
+export function createRefund(
+  orderId: string,
+  input: { amountMinor: number; refundDate: string; note?: string },
+  idempotencyKey: string
+) {
+  return request<{ refund: Payment; order: OrderWithDerived }>(`/api/orders/${orderId}/refunds`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(input),
+  });
+}
+
+/** Fetches the CSV export and triggers a browser download — not JSON, so it bypasses `request`. */
+export async function downloadOrdersCsv(filter: { from?: string; to?: string; status?: string }): Promise<void> {
+  const params = new URLSearchParams();
+  if (filter.from) params.set('from', filter.from);
+  if (filter.to) params.set('to', filter.to);
+  if (filter.status && filter.status !== 'all') params.set('status', filter.status);
+
+  const res = await fetch(`/api/orders/export?${params.toString()}`, { credentials: 'include' });
+  if (!res.ok) {
+    let body: { error?: { code?: string; message?: string } } = {};
+    try {
+      body = await res.json();
+    } catch {
+      // no JSON body
+    }
+    throw new ApiError(
+      body.error?.code ?? 'UNKNOWN',
+      body.error?.message ?? `Export failed with status ${res.status}`,
+      res.status
+    );
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'orders-export.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchOrders, createOrder, ApiError } from '@/lib/api-client';
+import { fetchOrders, createOrder, downloadOrdersCsv, ApiError } from '@/lib/api-client';
 import { formatMinor, majorToMinor } from '@/lib/money';
 import { DatePicker } from '@/components/DatePicker';
 import { useToast } from '@/components/Toast';
@@ -37,6 +37,7 @@ function OrdersListContent() {
   const searchParams = useSearchParams();
   const status = searchParams.get('status') ?? 'all';
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const { data: orders, isLoading, error } = useQuery({
     queryKey: ['orders', status],
@@ -44,6 +45,20 @@ function OrdersListContent() {
   });
 
   const [showForm, setShowForm] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [exportFrom, setExportFrom] = useState('');
+  const [exportTo, setExportTo] = useState('');
+
+  const exportMutation = useMutation({
+    mutationFn: () => downloadOrdersCsv({ from: exportFrom || undefined, to: exportTo || undefined, status }),
+    onSuccess: () => {
+      toast.success('CSV export downloaded');
+      setShowExport(false);
+    },
+    onError: (err) => {
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong');
+    },
+  });
 
   function setStatus(next: string) {
     const params = new URLSearchParams(searchParams);
@@ -59,18 +74,33 @@ function OrdersListContent() {
           <h1>Orders</h1>
           <p className="hint" style={{ marginTop: '0.25rem' }}>Manage customer orders, view balances, and record payment settlements</p>
         </div>
-        <button onClick={() => setShowForm((s) => !s)}>
-          {showForm ? 'Cancel' : '+ New order'}
-        </button>
+        <div className="row" style={{ gap: '0.75rem' }}>
+          <button type="button" className="secondary" onClick={() => setShowExport((s) => !s)}>
+            {showExport ? 'Cancel' : 'Export CSV'}
+          </button>
+          <button onClick={() => setShowForm((s) => !s)}>
+            {showForm ? 'Cancel' : '+ New order'}
+          </button>
+        </div>
       </div>
 
-      {showForm && (
-        <NewOrderForm
-          onCreated={() => {
-            setShowForm(false);
-            queryClient.invalidateQueries({ queryKey: ['orders'] });
-          }}
-        />
+      {showExport && (
+        <div className="card row" style={{ alignItems: 'flex-end', gap: '0.875rem' }}>
+          <div className="field" style={{ flex: 1, minWidth: 140 }}>
+            <label htmlFor="export-from">From (due date)</label>
+            <DatePicker id="export-from" value={exportFrom} onChange={setExportFrom} placeholder="Any" />
+          </div>
+          <div className="field" style={{ flex: 1, minWidth: 140 }}>
+            <label htmlFor="export-to">To (due date)</label>
+            <DatePicker id="export-to" value={exportTo} onChange={setExportTo} placeholder="Any" />
+          </div>
+          <p className="hint" style={{ flex: 2, minWidth: 160 }}>
+            Exports orders matching the current status filter ({STATUS_OPTIONS.find((s) => s.value === status)?.label}). Leave dates blank to export all.
+          </p>
+          <button type="button" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending} style={{ whiteSpace: 'nowrap' }}>
+            {exportMutation.isPending ? 'Exporting…' : 'Download CSV'}
+          </button>
+        </div>
       )}
 
       <div className="row" style={{ alignItems: 'center', gap: '0.75rem' }}>
@@ -83,6 +113,15 @@ function OrdersListContent() {
           ))}
         </select>
       </div>
+
+      {showForm && (
+        <NewOrderForm
+          onCreated={() => {
+            setShowForm(false);
+            queryClient.invalidateQueries({ queryKey: ['orders'] });
+          }}
+        />
+      )}
 
       {isLoading && (
         <div className="loading-container">
