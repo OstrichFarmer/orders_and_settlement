@@ -19,7 +19,7 @@ Demo login after seeding: `demo@example.com` / `password123`.
 
 ## Live URL
 
-_Not deployed in this environment — see "Deploying" below for the steps to put this on Vercel + Atlas._
+https://orders-and-settlement.vercel.app
 
 ## API overview
 
@@ -32,10 +32,12 @@ All routes require auth via an httpOnly JWT cookie (`auth_token`, set by signup/
 | POST | `/api/auth/logout` | — | Clears the cookie. |
 | POST | `/api/orders` | `{ customer, dueDate, lineItems: [{ description, quantity, unitPriceMinor }] }` | `subtotalMinor`/`totalMinor` computed server-side. |
 | GET | `/api/orders?status=` | — | `status` is one of `pending`, `partially_paid`, `paid`, `overdue`. Omit for all. |
-| GET | `/api/orders/:id` | — | Returns `{ order, payments }`. |
+| GET | `/api/orders/:id` | — | Returns `{ order, payments, auditLog }`. `payments` includes both payments and refunds (see `type` field). |
 | PATCH | `/api/orders/:id` | `{ customer?, dueDate?, lineItems? }` | `lineItems` rejected with 409 `ORDER_LOCKED` once a payment exists. |
 | DELETE | `/api/orders/:id` | — | 409 `ORDER_HAS_PAYMENTS` once a payment exists. |
+| GET | `/api/orders/export?status=&from=&to=` | — | Streams a CSV (`text/csv`, attachment). `from`/`to` filter on `dueDate`; `status` matches the same values as the list endpoint. |
 | POST | `/api/orders/:id/payments` | `{ amountMinor, paidDate, note? }` | Optional `Idempotency-Key` header. 201 on success, 409 `OVERPAYMENT` with `maxAllowedMinor` if it would exceed the amount due. |
+| POST | `/api/orders/:id/refunds` | `{ amountMinor, refundDate, note? }` | Optional `Idempotency-Key` header. 201 on success, 409 `REFUND_EXCEEDS_PAID` with `maxAllowedMinor` if it would refund more than was ever paid. |
 
 The wire contract uses integer minor units directly (`amountMinor`, `unitPriceMinor`) so the client never has to do float math to talk to the API. The payments endpoint also accepts a fallback `amount` (major-unit string, e.g. `"12.50"`) for convenience — it's converted to minor units once, at the route boundary.
 
@@ -84,19 +86,29 @@ Tests (`lib/services/payments.test.ts`) run against `MongoMemoryReplSet` (requir
 
 Orders become read-only for `lineItems` once the first payment is recorded — mutating totals after money has been allocated against them would break reconciliation and could retroactively manufacture an over/under-payment. `customer`, `dueDate`, and `note` remain editable at any time. Deleting an order with any recorded payments is blocked for the same reason (payments are append-only and reference the order).
 
+## Stretch goals implemented
+
+All three optional stretch goals from the brief are implemented, not just documented:
+
+- **Refunds.** `lib/services/payments.ts#recordRefund` reuses the exact same claim-first, transaction-wrapped, `$expr`-guarded pattern as payments — the only differences are the sign of the `$inc` delta and the guard direction (`amountPaidMinor - amountMinor >= 0` instead of `amountPaidMinor + amountMinor <= totalMinor`). Refunds and payments live in the same `payments` collection, distinguished by a `type: 'payment' | 'refund'` field, so payment history is naturally a single chronological ledger. A refund can move an order's status backward (`paid` → `partially_paid` → `pending`), which is handled by the same `deriveStoredStatus` call and produces the same `status.changed` audit trail as a payment does. Total refunds can never exceed total payments — enforced atomically, the same way over-payment is prevented. UI: a "Record a Refund" form on the order detail page, shown whenever `amountPaidMinor > 0`.
+- **Audit log with timestamps.** This was already being written (every `order.created`, `payment.recorded`, `refund.recorded`, and `status.changed` event, each timestamped) but had no way to view it — `GET /api/orders/:id` now also returns the order's full audit trail, rendered as an "Activity" feed on the order detail page.
+- **CSV export.** `GET /api/orders/export?from=&to=&status=` streams a CSV of orders filtered by `dueDate` range (see the date-range assumption below) and status, reusing the same `listOrders` query the dashboard list uses. The orders list page has a collapsible "Export CSV" panel with two date pickers; the download is triggered client-side via `fetch` + `Blob` (not a plain `<a href>`) so a failed export surfaces a toast instead of a raw JSON error page.
+
 ## Assumptions & tradeoffs
 
 - `amountPaidMinor` on the order is a cached, denormalized aggregate, mutated only inside the guarded payment write. The `payments` collection is the source of truth for reconciliation; the cache can always be rebuilt by summing payments for an order.
 - `GET /api/orders?status=overdue` is a real Mongo query on stored fields (`{ status: { $ne: 'paid' }, dueDate: { $lt: now } }`), not an in-memory filter — `overdue` is a predicate over persisted fields, so it's expressible directly.
 - Single currency; no currency field on orders or payments.
 - `version` exists on the order schema for future optimistic-concurrency use but isn't currently load-bearing — the `$expr`-guarded increment is what actually protects `amountPaidMinor`.
+- The CSV export's date range filters on `dueDate`, not `createdAt` — "orders due between X and Y" reads as the more useful settlements report than "orders created between X and Y", but this is an assumption, not a spec requirement.
+- A refund can bring a `paid` order back to `partially_paid` or `pending`. Line items stay locked in that state (the lock checks "has any payment ever been recorded," not "is currently unpaid") — un-locking line items after a refund felt like the wrong default given the order still has payment history against it, but it's worth a product conversation.
 
 ## What I'd improve before production
 
 - Rate limiting on `/api/auth/*` and `/api/orders/*/payments`.
 - Structured logging + request tracing for payment-path auditability at the ops level.
-- Currency support, refunds, and webhook notifications on status change.
-- Pagination on the orders list and payment history once either can grow large.
+- Currency support and webhook notifications on status change.
+- Pagination on the orders list, payment history, and CSV export once any of them can grow large.
 
 ## Deploying (Vercel + Atlas)
 
