@@ -34,10 +34,14 @@ export interface OrderWithDerived extends Order {
   displayStatus: DisplayStatus;
 }
 
+export type SettlementType = 'payment' | 'refund';
+
 export interface Payment {
   _id: ObjectId;
   orderId: ObjectId;
   userId: ObjectId;
+  /** 'payment' increases amountPaidMinor, 'refund' decreases it. amountMinor is always a positive magnitude. */
+  type: SettlementType;
   amountMinor: number;
   paidDate: Date;
   note?: string;
@@ -45,7 +49,7 @@ export interface Payment {
   createdAt: Date;
 }
 
-export type AuditEvent = 'order.created' | 'payment.recorded' | 'status.changed';
+export type AuditEvent = 'order.created' | 'payment.recorded' | 'refund.recorded' | 'status.changed';
 
 export interface AuditLog {
   _id: ObjectId;
